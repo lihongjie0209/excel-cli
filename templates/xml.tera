@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<worksheet name="{{ sheet_name }}">
+    <meta>
+        <row_count>{{ row_count }}</row_count>
+        <column_count>{{ column_count }}</column_count>
+    </meta>
+    <headers>
+        {% for header in headers -%}
+        <header>{{ header }}</header>
+        {% endfor -%}
+    </headers>
+    <rows>
+        {% for row in rows -%}
+        <row>
+            {% for header in headers -%}
+            <{{ header }}>{{ row[header] | default(value="") }}</{{ header }}>
+            {% endfor -%}
+        </row>
+        {% endfor -%}
+    </rows>
+</worksheet>

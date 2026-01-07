@@ -1,0 +1,9 @@
+sheet_name: {{ sheet_name }}
+row_count: {{ row_count }}
+column_count: {{ column_count }}
+rows:
+{% for row in rows -%}
+  - {% for header in headers %}
+    {{ header }}: {{ row[header] | default(value="null") }}
+    {% endfor %}
+{% endfor %}
