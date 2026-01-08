@@ -32,5 +32,8 @@ thiserror = "1.0"
 # 模板引擎
 tera = "1.19"
 
+# 命令行表格显示
+comfy-table = "7.1"
+
 [dev-dependencies]
 tempfile = "3.10"

@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
 use excel_cli::{
     DataFilter, ExcelReader, ExporterConfig, ExporterFactory, FilterCondition, Result,
     SchemaGenerator, SqlDialect,
@@ -118,6 +119,21 @@ enum Commands {
 
     /// 显示支持的导出格式
     Formats,
+
+    /// 预览 Excel 文件中的数据
+    Preview {
+        /// Excel 文件路径
+        #[arg(short, long)]
+        input: String,
+
+        /// 工作表名称（可选，默认使用第一个工作表）
+        #[arg(short, long)]
+        sheet: Option<String>,
+
+        /// 显示的最大行数（默认显示所有行）
+        #[arg(short, long)]
+        limit: Option<usize>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -181,6 +197,13 @@ fn main() -> Result<()> {
         }
         Commands::Formats => {
             show_formats();
+        }
+        Commands::Preview {
+            input,
+            sheet,
+            limit,
+        } => {
+            preview_excel(&input, sheet.as_deref(), limit)?;
         }
     }
 
@@ -479,6 +502,81 @@ fn generate_schema(
             println!("{}", sql);
         }
     }
+
+    Ok(())
+}
+
+/// 预览 Excel 文件
+fn preview_excel(input: &str, sheet_name: Option<&str>, limit: Option<usize>) -> Result<()> {
+    // 检查输入文件是否存在
+    if !Path::new(input).exists() {
+        eprintln!("❌ 错误: 输入文件不存在: {}", input);
+        std::process::exit(1);
+    }
+
+    println!("📖 正在读取 Excel 文件: {}", input);
+
+    // 创建 Excel 读取器
+    let reader = ExcelReader::new(input);
+
+    // 读取工作表数据
+    let data = reader.read_sheet(sheet_name)?;
+
+    println!(
+        "✅ 成功读取工作表 '{}': {} 行 × {} 列",
+        data.sheet_name,
+        data.row_count(),
+        data.column_count()
+    );
+
+    // 创建表格
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+
+    // 添加表头
+    let mut header_cells = Vec::new();
+    for header in &data.headers {
+        header_cells.push(Cell::new(header).fg(Color::Green));
+    }
+    table.set_header(header_cells);
+
+    // 确定要显示的行数
+    let display_count = limit.unwrap_or(data.row_count());
+    let rows_to_display = data.rows.iter().take(display_count);
+
+    // 添加数据行
+    for row in rows_to_display {
+        let mut row_cells = Vec::new();
+        for header in &data.headers {
+            let value = row.data.get(header);
+            let cell_value = match value {
+                Some(cell) => cell.to_string(),
+                None => String::new(),
+            };
+            row_cells.push(cell_value);
+        }
+        table.add_row(row_cells);
+    }
+
+    // 如果设置了限制且总行数大于限制，显示提示
+    if let Some(limit_value) = limit {
+        if data.row_count() > limit_value {
+            println!(
+                "\n📊 显示前 {} 行（共 {} 行）\n",
+                limit_value,
+                data.row_count()
+            );
+        } else {
+            println!();
+        }
+    } else {
+        println!();
+    }
+
+    // 打印表格
+    println!("{}", table);
 
     Ok(())
 }
